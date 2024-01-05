@@ -13,17 +13,42 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+
+      - name: Clone Leptos Website Repository
+        run: git clone https://github.com/Andrewp2/nexus.git
+        working-directory: ${{ github.workspace }}
+
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-west-1
+
       - name: install npm
         run: 'sudo apt update -y && sudo apt install nodejs npm -y'
       
       - name: Install AWS CDK
         run: 'sudo npm install -g aws-cdk'
+
+      - name: Setup Rust Environment
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Install cargo-lambda and cargo leptos
+        run: |
+          cargo install cargo-lambda
+          cargo install cargo-leptos
+        
+      - name: Build Leptos Website
+        run: cargo leptos build --release
+        working-directory: ${{ github.workspace }}/nexus
+
+      - name: Build Proudction Server Binary
+        run: LEPTOS_OUTPUT_NAME=aws-lambda cargo lambda build --no-default-features --features=ssr --release
+        working-directory: ${{ github.workspace }}/nexus
 
       - name: CDK Synth
         run: cdk synth
