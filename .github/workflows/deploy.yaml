@@ -7,40 +7,49 @@ on:
   #  branches: [main]
   workflow_dispatch:
 
+env: 
+    RUSTFLAGS: --cfg=web_sys_unstable_apis
+
 jobs:
   aws_cdk:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Clone Leptos Website Repository
         run: git clone https://github.com/Andrewp2/nexus.git
         working-directory: ${{ github.workspace }}
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v1
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-west-1
 
-      - name: install npm
+      - name: Install npm
         run: 'sudo apt update -y && sudo apt install nodejs npm -y'
       
       - name: Install AWS CDK
         run: 'sudo npm install -g aws-cdk'
 
-      - name: Setup Rust Environment
-        uses: actions-rs/toolchain@v1
+      - name: Install Rust
+        id: toolchain
+        uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: stable
-          override: true
+          toolchain: nightly
+          targets: "wasm32-unknown-unknown"
+          components: "rustfmt"
 
-      - name: Install cargo-lambda and cargo leptos
-        run: |
-          cargo install cargo-lambda
-          cargo install cargo-leptos
+      - name: Set up Rust cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install cargo-lambda
+        run: cargo install cargo-lambda
+
+      - name: Install cargo-leptos
+        run: cargo install cargo-leptos
         
       - name: Build Leptos Website
         run: cargo leptos build --release
