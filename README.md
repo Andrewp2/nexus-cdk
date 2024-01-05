@@ -1,8 +1,8 @@
-# Welcome to your CDK TypeScript project
+# Nexus CDK
 
-This is a blank project for CDK development with TypeScript.
+This is the CDK project for the Nexus website.
 
-The `cdk.json` file tells the CDK Toolkit how to execute your app.
+The `cdk.json` file tells the CDK Toolkit how to execute the app.
 
 ## Useful commands
 
