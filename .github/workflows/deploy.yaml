@@ -42,6 +42,9 @@ jobs:
           targets: "wasm32-unknown-unknown"
           components: "rustfmt"
 
+      - name: Install Ziglang
+        run: pip3 install ziglang
+
       - name: Set up Rust cache
         uses: Swatinem/rust-cache@v2
 
@@ -49,7 +52,7 @@ jobs:
         run: cargo install cargo-lambda
 
       - name: Install cargo-leptos
-        run: cargo install cargo-leptos
+        run: cargo install --locked cargo-leptos
         
       - name: Build Leptos Website
         run: cargo leptos build --release
