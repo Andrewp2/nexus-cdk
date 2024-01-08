@@ -64,8 +64,8 @@ jobs:
 
       - name: CDK Synth
         run: cdk synth
-        working-directory: CDK-AWS
+        working-directory: ${{ github.workspace }}
 
       - name: CDK Deploy
         run: cdk deploy
-        working-directory: CDK-AWS
+        working-directory: ${{ github.workspace }}
