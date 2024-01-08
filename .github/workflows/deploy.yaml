@@ -30,6 +30,9 @@ jobs:
 
       - name: Install npm
         run: 'sudo apt update -y && sudo apt install nodejs npm -y'
+
+      - name: Install npm dependencies
+        run: npm install
       
       - name: Install AWS CDK
         run: 'sudo npm install -g aws-cdk'
