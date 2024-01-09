@@ -58,7 +58,7 @@ jobs:
         run: cargo install --locked cargo-leptos
         
       - name: Build Leptos Website
-        run: cargo leptos build --release
+        run: cargo leptos build --release --output-format zip
         working-directory: ${{ github.workspace }}/nexus
 
       - name: Build Proudction Server Binary
