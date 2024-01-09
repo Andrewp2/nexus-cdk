@@ -58,11 +58,11 @@ jobs:
         run: cargo install --locked cargo-leptos
         
       - name: Build Leptos Website
-        run: cargo leptos build --release --output-format zip
+        run: cargo leptos build --release 
         working-directory: ${{ github.workspace }}/nexus
 
       - name: Build Proudction Server Binary
-        run: LEPTOS_OUTPUT_NAME=aws-lambda cargo lambda build --no-default-features --features=ssr --release
+        run: LEPTOS_OUTPUT_NAME=aws-lambda cargo lambda build --no-default-features --features=ssr --release --output-format zip
         working-directory: ${{ github.workspace }}/nexus
 
       - name: CDK Synth
