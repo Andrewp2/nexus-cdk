@@ -28,47 +28,50 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-west-1
 
-      - name: Install npm
-        run: 'sudo apt update -y && sudo apt install nodejs npm -y'
+      - name: list
+        run: ls -a
 
-      - name: Install npm dependencies
-        run: npm install
+      # - name: Install npm
+      #   run: 'sudo apt update -y && sudo apt install nodejs npm -y'
+
+      # - name: Install npm dependencies
+      #   run: npm install
       
-      - name: Install AWS CDK
-        run: 'sudo npm install -g aws-cdk'
+      # - name: Install AWS CDK
+      #   run: 'sudo npm install -g aws-cdk'
 
-      - name: Install Rust
-        id: toolchain
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: nightly
-          targets: "wasm32-unknown-unknown"
-          components: "rustfmt"
+      # - name: Install Rust
+      #   id: toolchain
+      #   uses: dtolnay/rust-toolchain@master
+      #   with:
+      #     toolchain: nightly
+      #     targets: "wasm32-unknown-unknown"
+      #     components: "rustfmt"
 
-      - name: Install Ziglang
-        run: pip3 install ziglang
+      # - name: Install Ziglang
+      #   run: pip3 install ziglang
 
-      - name: Set up Rust cache
-        uses: Swatinem/rust-cache@v2
+      # - name: Set up Rust cache
+      #   uses: Swatinem/rust-cache@v2
 
-      - name: Install cargo-lambda
-        run: cargo install cargo-lambda
+      # - name: Install cargo-lambda
+      #   run: cargo install cargo-lambda
 
-      - name: Install cargo-leptos
-        run: cargo install --locked cargo-leptos
+      # - name: Install cargo-leptos
+      #   run: cargo install --locked cargo-leptos
         
-      - name: Build Leptos Website
-        run: cargo leptos build --release 
-        working-directory: ${{ github.workspace }}/nexus
+      # - name: Build Leptos Website
+      #   run: cargo leptos build --release 
+      #   working-directory: ${{ github.workspace }}/nexus
 
-      - name: Build Proudction Server Binary
-        run: LEPTOS_OUTPUT_NAME=aws-lambda cargo lambda build --no-default-features --features=ssr --release --output-format zip
-        working-directory: ${{ github.workspace }}/nexus
+      # - name: Build Proudction Server Binary
+      #   run: LEPTOS_OUTPUT_NAME=aws-lambda cargo lambda build --no-default-features --features=ssr --release --output-format zip
+      #   working-directory: ${{ github.workspace }}/nexus
 
-      - name: CDK Synth
-        run: cdk synth
-        working-directory: ${{ github.workspace }}
+      # - name: CDK Synth
+      #   run: cdk synth
+      #   working-directory: ${{ github.workspace }}
 
-      - name: CDK Deploy
-        run: cdk deploy
-        working-directory: ${{ github.workspace }}
+      # - name: CDK Deploy
+      #   run: cdk deploy
+      #   working-directory: ${{ github.workspace }}
