@@ -98,10 +98,10 @@ export class CdkStack extends cdk.Stack {
     switch (stage) {
       case 'dev':
         return {
-          suffix: '-Dev'
+          suffix: '-dev'
         }
       case 'staging':
-        return { suffix: '-Staging' };
+        return { suffix: '-staging' };
       case 'prod':
         return { suffix: '' };
       default:
