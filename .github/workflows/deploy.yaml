@@ -12,14 +12,16 @@ jobs:
   aws_cdk:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout CDK repository
         uses: actions/checkout@v3
         with:
-          path: ${{ github.workspace }}/cdk 
+          path: cdk 
 
-      - name: Clone Leptos Website Repository
-        run: git clone https://github.com/Andrewp2/nexus.git
-        working-directory: ${{ github.workspace }}
+      - name: Checkout Leptos Website Repository
+        uses: actions/checkout@v3
+        with:
+          repository: Andrewp2/nexus
+          path: nexus
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -28,13 +30,20 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-west-2
 
-      - name: Install npm
-        run: 'sudo apt update -y && sudo apt install nodejs npm -y'
-        working-directory: ${{ github.workspace }}/cdk
+      - name: Set Stage Environment Variable
+        run: |
+            if [[ ${{ github.ref }} == 'refs/heads/dev' ]]; then
+              echo "STAGE=dev" >> $GITHUB_ENV
+            elif [[ ${{ github.ref }} == 'refs/heads/staging' ]]; then
+              echo "STAGE=staging" >> $GITHUB_ENV
+            elif [[ ${{ github.ref }} == 'refs/heads/release' ]]; then
+              echo "STAGE=prod" >> $GITHUB_ENV
+            fi
 
-      - name: Install npm dependencies
-        run: npm install
-        working-directory: ${{ github.workspace }}/cdk
+      - name: Install Node.js and NPM
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
       
       - name: Install AWS CDK
         run: 'sudo npm install -g aws-cdk'
@@ -53,45 +62,23 @@ jobs:
       - name: Set up Rust cache
         uses: Swatinem/rust-cache@v2
 
-      - name: Install cargo-lambda
-        run: cargo install cargo-lambda
-
-      - name: Install cargo-leptos
-        run: cargo install --locked cargo-leptos
-
-      - name: Set Stage Environment Variable
+      - name: Install cargo-lambda and cargo-leptos
         run: |
-          if [[ ${{ github.ref }} == 'refs/heads/dev' ]]; then
-            echo "STAGE=dev" >> $GITHUB_ENV
-          elif [[ ${{ github.ref }} == 'refs/heads/staging' ]]; then
-            echo "STAGE=staging" >> $GITHUB_ENV
-          elif [[ ${{ github.ref }} == 'refs/heads/release' ]]; then
-            echo "STAGE=prod" >> $GITHUB_ENV
-          fi
-        
+          cargo install cargo-lambda
+          cargo install --locked cargo-leptos
+
       - name: Build Leptos Website
         run: cargo leptos build --release 
-        working-directory: ${{ github.workspace }}/nexus
+        working-directory: nexus
 
       - name: Build Production Server Binary
         run: LEPTOS_OUTPUT_NAME=aws-lambda cargo lambda build --no-default-features --features=ssr --release --output-format zip
-        working-directory: ${{ github.workspace }}/nexus
+        working-directory: nexus
 
       - name: CDK Synth
         run: cdk synth
-        working-directory: ${{ github.workspace }}/cdk
-
-      - name: Determine Stage
-        id: set_stage
-        run: |
-          if [[ ${{ github.ref }} == 'refs/heads/dev' ]]; then
-            echo "::set-output name=stage::Development"
-          elif [[ ${{ github.ref }} == 'refs/heads/staging' ]]; then
-            echo "::set-output name=stage::Staging"
-          elif [[ ${{ github.ref }} == 'refs/heads/release' ]]; then
-            echo "::set-output name=stage::Production"
-          fi
+        working-directory: cdk
 
       - name: CDK Deploy
-        run: cdk deploy --require-approval never --context stage=${{ steps.set_stage.outputs.stage }}
-        working-directory: ${{ github.workspace }}/cdk
+        run: cdk deploy --require-approval never --context stage=${{ env.STAGE }}
+        working-directory: cdk

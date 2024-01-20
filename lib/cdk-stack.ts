@@ -8,7 +8,7 @@ import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import { Construct } from 'constructs';
 
 interface MyStackProps extends cdk.StackProps {
-  environment: string;
+  stage: 'dev' | 'staging' | 'prod';
 }
 
 export class CdkStack extends cdk.Stack {
@@ -33,7 +33,7 @@ export class CdkStack extends cdk.Stack {
     //   }
     // });
 
-    const envConfig = this.loadEnvironmentConfig(props?.environment || 'unknown');
+    const envConfig = this.loadConfig(props?.stage || 'unknown');
 
     const fat_lambda = new lambda.Function(this, `NexusSSRFunction${envConfig.suffix}`, {
       runtime: lambda.Runtime.PROVIDED_AL2,
@@ -92,20 +92,20 @@ export class CdkStack extends cdk.Stack {
     });
   }
 
-  private loadEnvironmentConfig(environment: string): NexusConfig {
+  private loadConfig(stage: string): NexusConfig {
     // Load configuration based on the environment
     // This could be from a file, process.env, or any other source
-    switch (environment) {
-      case 'Development':
+    switch (stage) {
+      case 'dev':
         return {
           suffix: '-Dev'
         }
-      case 'Staging':
+      case 'staging':
         return { suffix: '-Staging' };
-      case 'Production':
+      case 'prod':
         return { suffix: '' };
       default:
-        throw new Error(`Unknown environment: ${environment}`);
+        throw new Error(`Unknown environment: ${stage}`);
     }
   }
 }
