@@ -1,10 +1,8 @@
 name: Deploy AWS CDK
 
 on:
-  #push:
-  #  branches: [main]
-  #pull_request:
-  #  branches: [main]
+  push:
+    branches: [dev, staging, release]
   workflow_dispatch:
 
 env: 
@@ -73,6 +71,17 @@ jobs:
         run: cdk synth
         working-directory: ${{ github.workspace }}/cdk
 
+      - name: Determine Stage
+        id: set_stage
+        run: |
+          if [[ ${{ github.ref }} == 'refs/heads/dev' ]]; then
+            echo "::set-output name=stage::Development"
+          elif [[ ${{ github.ref }} == 'refs/heads/staging' ]]; then
+            echo "::set-output name=stage::Staging"
+          elif [[ ${{ github.ref }} == 'refs/heads/release' ]]; then
+            echo "::set-output name=stage::Production"
+          fi
+
       - name: CDK Deploy
-        run: cdk deploy --require-approval never
+        run: cdk deploy --require-approval never --context stage=${{ steps.set_stage.outputs.stage }}
         working-directory: ${{ github.workspace }}/cdk
