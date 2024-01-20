@@ -39,8 +39,9 @@ export class CdkStack extends cdk.Stack {
       runtime: lambda.Runtime.PROVIDED_AL2,
       handler: 'index.main',
       code: lambda.Code.fromAsset("../nexus/target/lambda/nexus/bootstrap.zip"),
-      architecture: lambda.Architecture.ARM_64,
+      architecture: lambda.Architecture.X86_64,
       memorySize: 128,
+
     });
 
     const gateway = new apigateway.CfnApi(this, `NexusHTTPApi${envConfig.suffix}`, {
