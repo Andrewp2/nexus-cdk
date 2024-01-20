@@ -58,6 +58,16 @@ jobs:
 
       - name: Install cargo-leptos
         run: cargo install --locked cargo-leptos
+
+      - name: Set Stage Environment Variable
+        run: |
+          if [[ ${{ github.ref }} == 'refs/heads/dev' ]]; then
+            echo "STAGE=dev" >> $GITHUB_ENV
+          elif [[ ${{ github.ref }} == 'refs/heads/staging' ]]; then
+            echo "STAGE=staging" >> $GITHUB_ENV
+          elif [[ ${{ github.ref }} == 'refs/heads/release' ]]; then
+            echo "STAGE=prod" >> $GITHUB_ENV
+          fi
         
       - name: Build Leptos Website
         run: cargo leptos build --release 
