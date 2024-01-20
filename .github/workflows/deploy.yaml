@@ -44,6 +44,10 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: '20'
+
+      - name: Install NPM Packages
+        run: npm install
+        working-directory: cdk
       
       - name: Install AWS CDK
         run: 'sudo npm install -g aws-cdk'
