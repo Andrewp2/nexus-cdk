@@ -8,7 +8,7 @@ const stage = process.env.STAGE || 'dev';  // Default to 'dev' if STAGE is not s
 if (stage != 'dev' && stage != 'prod' && stage != 'staging') {
   throw new Error("stage incorrect")
 }
-new CdkStack(app, 'MyCdkStack', {
+new CdkStack(app, `NexusCdkStack-${stage}`, {
   /* If you don't specify 'env', this stack will be environment-agnostic.
    * Account/Region-dependent features and context lookups will not work,
    * but a single synthesized template can be deployed anywhere. */
