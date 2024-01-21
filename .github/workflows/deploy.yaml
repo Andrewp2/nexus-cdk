@@ -76,7 +76,7 @@ jobs:
         working-directory: nexus
 
       - name: Build Production Server Binary
-        run: LEPTOS_OUTPUT_NAME=aws-lambda cargo lambda build --no-default-features --features=ssr --release --output-format zip
+        run: LEPTOS_OUTPUT_NAME=nexus cargo lambda build --no-default-features --features=ssr --release --output-format zip
         working-directory: nexus
 
       - name: CDK Synth
