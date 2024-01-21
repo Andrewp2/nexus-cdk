@@ -15,25 +15,30 @@ export class CdkStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: MyStackProps) {
     super(scope, id, props);
 
-    // Things needed -
-
-    // S3 Bucket
-    // Cloudformation distribution
-    // API Gateway
-    // AWS Lambda
-    // DynamoDB
-    // const bucket = new s3.Bucket(this, 'MyBucket', {
-    //   bucketName: 'my-new-static-asset-bucket',
-    //   removalPolicy: cdk.RemovalPolicy.DESTROY,
-    // });
-
-    // const cf_distribution = new cloudfront.Distribution(this, 'MyDistribution', {
-    //   defaultBehavior: {
-    //     origin: new cf_origins.S3Origin(bucket)
-    //   }
-    // });
-
     const envConfig = this.loadConfig(props?.stage || 'unknown');
+
+    const bucket = new s3.Bucket(this, `NexusBucket${envConfig.suffix}`, {
+      bucketName: `nexus-static-asset-bucket${envConfig.suffix}`,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
+
+    const gateway = new apigateway.CfnApi(this, `NexusHTTPApi${envConfig.suffix}`, {
+      name: 'MyHttpApi',
+      protocolType: 'HTTP',
+    });
+
+    const cf_distribution = new cloudfront.Distribution(this, `NexusDistribution${envConfig.suffix}`, {
+      defaultBehavior: {
+        origin: new cf_origins.HttpOrigin(`${gateway.ref}.execute-api.${this.region}.${this.urlSuffix}`),
+        viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+      },
+      additionalBehaviors: {
+        '/assets/*': {
+          origin: new cf_origins.S3Origin(bucket),
+          viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+        }
+      },
+    });
 
     const fat_lambda = new lambda.Function(this, `NexusSSRFunction${envConfig.suffix}`, {
       runtime: lambda.Runtime.PROVIDED_AL2,
@@ -42,11 +47,6 @@ export class CdkStack extends cdk.Stack {
       architecture: lambda.Architecture.X86_64,
       memorySize: 128,
 
-    });
-
-    const gateway = new apigateway.CfnApi(this, `NexusHTTPApi${envConfig.suffix}`, {
-      name: 'MyHttpApi',
-      protocolType: 'HTTP',
     });
 
     const integration = new apigateway.CfnIntegration(this, `NexusAPILambdaIntegration${envConfig.suffix}`, {

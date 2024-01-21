@@ -86,3 +86,6 @@ jobs:
       - name: CDK Deploy
         run: cdk deploy --require-approval never --context stage=${{ env.STAGE }}
         working-directory: cdk
+
+      - name: Upload assets to S3
+        run: aws s3 sync ./nexus/target/site/pkg s3::/nexus-static-asset-bucket-${{ env.STAGE}} --delete
