@@ -5,6 +5,9 @@ import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
 import * as cf_origins from 'aws-cdk-lib/aws-cloudfront-origins';
 import * as apigateway from 'aws-cdk-lib/aws-apigatewayv2';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
+import * as iam from 'aws-cdk-lib/aws-iam';
+import * as integrations from 'aws-cdk-lib/aws-apigatewayv2-integrations';
+
 import { Construct } from 'constructs';
 
 interface MyStackProps extends cdk.StackProps {
@@ -22,14 +25,28 @@ export class CdkStack extends cdk.Stack {
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 
-    const gateway = new apigateway.CfnApi(this, `NexusHTTPApi${envConfig.suffix}`, {
-      name: 'MyHttpApi',
-      protocolType: 'HTTP',
+    const fat_lambda = new lambda.Function(this, `NexusSSRFunction${envConfig.suffix}`, {
+      runtime: lambda.Runtime.PROVIDED_AL2,
+      handler: 'index.main',
+      code: lambda.Code.fromAsset("../nexus/target/lambda/nexus/bootstrap.zip"),
+      architecture: lambda.Architecture.X86_64,
+      memorySize: 128,
+    });
+
+    const lambda_integration = new integrations.HttpLambdaIntegration(`LambdaIntegration${envConfig.suffix}`, fat_lambda);
+
+    const httpApi = new apigateway.HttpApi(this, 'HttpApi', {
+      defaultIntegration: lambda_integration,
+    });
+    httpApi.addRoutes({
+      path: '/',
+      methods: [apigateway.HttpMethod.GET],
+      integration: lambda_integration
     });
 
     const cf_distribution = new cloudfront.Distribution(this, `NexusDistribution${envConfig.suffix}`, {
       defaultBehavior: {
-        origin: new cf_origins.HttpOrigin(`${gateway.ref}.execute-api.${this.region}.${this.urlSuffix}`),
+        origin: new cf_origins.HttpOrigin(`${httpApi.httpApiId}.execute-api.${this.region}.amazonaws.com`),
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
       },
       additionalBehaviors: {
@@ -38,28 +55,7 @@ export class CdkStack extends cdk.Stack {
           viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
         }
       },
-    });
-
-    const fat_lambda = new lambda.Function(this, `NexusSSRFunction${envConfig.suffix}`, {
-      runtime: lambda.Runtime.PROVIDED_AL2,
-      handler: 'index.main',
-      code: lambda.Code.fromAsset("../nexus/target/lambda/nexus/bootstrap.zip"),
-      architecture: lambda.Architecture.X86_64,
-      memorySize: 128,
-
-    });
-
-    const integration = new apigateway.CfnIntegration(this, `NexusAPILambdaIntegration${envConfig.suffix}`, {
-      apiId: gateway.ref,
-      integrationType: 'AWS_PROXY',
-      integrationUri: fat_lambda.functionArn,
-      payloadFormatVersion: '2.0',
-    });
-
-    const route = new apigateway.CfnRoute(this, `NexusRoute${envConfig.suffix}`, {
-      apiId: gateway.ref,
-      routeKey: '$default',
-      target: 'integrations/' + integration.ref
+      comment: `${envConfig.suffix}`,
     });
 
     const table = new dynamodb.Table(this, `NexusDynamoTable${envConfig.suffix}`, {
