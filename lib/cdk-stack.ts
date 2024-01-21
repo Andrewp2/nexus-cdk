@@ -33,7 +33,7 @@ export class CdkStack extends cdk.Stack {
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
       },
       additionalBehaviors: {
-        '/assets/*': {
+        '/pkg/*': {
           origin: new cf_origins.S3Origin(bucket),
           viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
         }
