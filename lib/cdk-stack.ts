@@ -53,6 +53,7 @@ export class CdkStack extends cdk.Stack {
       defaultBehavior: {
         origin: new cf_origins.HttpOrigin(`${httpApi.httpApiId}.execute-api.${this.region}.amazonaws.com`),
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+        allowedMethods: cloudfront.AllowedMethods.ALLOW_ALL,
       },
       additionalBehaviors: {
         '/pkg/*': {
