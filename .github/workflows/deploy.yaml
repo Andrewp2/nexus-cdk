@@ -50,14 +50,13 @@ jobs:
               echo "STRIPE_PUBLIC_KEY=${{ secrets.STRIPE_PUBLIC_KEY_PROD }}" >> $GITHUB_ENV
             fi
 
-
       - name: Install OpenSSL Development Packages
         run: sudo apt-get update && sudo apt-get install -y libssl-dev pkg-config
-
-      - name: Set OpenSSL Environment Variables for Cross-Compilation
+          
+      - name: Set OpenSSL Environment Variables for Build
         run: |
-            echo "OPENSSL_DIR=/usr/include/openssl" >> $GITHUB_ENV
-            echo "PKG_CONFIG_PATH=/usr/lib/pkgconfig" >> $GITHUB_ENV
+              echo "OPENSSL_DIR=/usr" >> $GITHUB_ENV
+              echo "PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig" >> $GITHUB_ENV
 
       - name: Install Node.js and NPM
         uses: actions/setup-node@v4
