@@ -50,7 +50,8 @@ jobs:
               echo "STRIPE_PUBLIC_KEY=${{ secrets.STRIPE_PUBLIC_KEY_PROD }}" >> $GITHUB_ENV
             fi
 
-
+      - name: Install SSL
+        run: sudo apt install libssl-dev
 
       - name: Install Node.js and NPM
         uses: actions/setup-node@v4
