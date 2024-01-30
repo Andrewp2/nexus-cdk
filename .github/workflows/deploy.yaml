@@ -13,12 +13,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout CDK repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           path: cdk 
 
       - name: Checkout Leptos Website Repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: Andrewp2/nexus
           path: nexus
