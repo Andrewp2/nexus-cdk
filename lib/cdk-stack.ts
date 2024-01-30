@@ -25,12 +25,17 @@ export class CdkStack extends cdk.Stack {
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 
+    let stripe_secret_key = props?.stage == 'prod' ? "" : "";
+
     const fat_lambda = new lambda.Function(this, `NexusSSRFunction${envConfig.suffix}`, {
       runtime: lambda.Runtime.PROVIDED_AL2,
       handler: 'index.main',
       code: lambda.Code.fromAsset("../nexus/target/lambda/nexus/bootstrap.zip"),
       architecture: lambda.Architecture.ARM_64,
       memorySize: 128,
+      environment: {
+        "STRIPE_SECRET_KEY": stripe_secret_key
+      }
     });
 
     const lambda_integration = new integrations.HttpLambdaIntegration(`LambdaIntegration${envConfig.suffix}`, fat_lambda);
