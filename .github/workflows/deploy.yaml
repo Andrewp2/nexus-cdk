@@ -78,6 +78,9 @@ jobs:
           targets: "wasm32-unknown-unknown"
           components: "rustfmt"
 
+      - name: install wasm32 target
+        run: rustup target add wasm32-unknown-unknown
+
       - name: Install Ziglang
         run: pip3 install ziglang
 
