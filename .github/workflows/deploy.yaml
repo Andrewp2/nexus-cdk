@@ -74,12 +74,9 @@ jobs:
         id: toolchain
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: stable
+          toolchain: nightly
           targets: "wasm32-unknown-unknown"
           components: "rustfmt"
-
-      - name: install wasm32 target
-        run: rustup target add wasm32-unknown-unknown
 
       - name: Install Ziglang
         run: pip3 install ziglang
@@ -90,7 +87,7 @@ jobs:
       - name: Install cargo-lambda and cargo-leptos
         run: |
           cargo install cargo-lambda
-          cargo install cargo-leptos
+          cargo install --locked cargo-leptos
 
       - name: Build Leptos Website
         run: cargo leptos build --release 
