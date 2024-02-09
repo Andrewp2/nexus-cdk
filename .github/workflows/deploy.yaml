@@ -74,7 +74,7 @@ jobs:
         id: toolchain
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: nightly
+          toolchain: stable
           targets: "wasm32-unknown-unknown"
           components: "rustfmt"
 
