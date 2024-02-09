@@ -87,7 +87,7 @@ jobs:
       - name: Install cargo-lambda and cargo-leptos
         run: |
           cargo install cargo-lambda
-          cargo install --locked cargo-leptos
+          cargo install cargo-leptos
 
       - name: Build Leptos Website
         run: cargo leptos build --release 
