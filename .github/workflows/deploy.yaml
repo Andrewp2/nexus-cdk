@@ -45,9 +45,11 @@ jobs:
             if [[ ${{ github.ref }} == 'refs/heads/dev' || ${{ github.ref }} == 'refs/heads/staging' ]]; then
               echo "STRIPE_SECRET_KEY=${{ secrets.STRIPE_SECRET_KEY_TEST }}" >> $GITHUB_ENV
               echo "STRIPE_PUBLIC_KEY=${{ secrets.STRIPE_PUBLIC_KEY_TEST }}" >> $GITHUB_ENV
+              echo "STRIPE_WEBHOOK_SECRET"=${{ secrets.STRIPE_WEBHOOK_SECRET_TEST}}" >> $GITHUB_ENV
             elif [[ ${{ github.ref }} == 'refs/heads/release' ]]; then
               echo "STRIPE_SECRET_KEY=${{ secrets.STRIPE_SECRET_KEY_PROD }}" >> $GITHUB_ENV
               echo "STRIPE_PUBLIC_KEY=${{ secrets.STRIPE_PUBLIC_KEY_PROD }}" >> $GITHUB_ENV
+              echo "STRIPE_WEBHOOK_SECRET"=${{ secrets.STRIPE_WEBHOOK_SECRET_PROD}}" >> $GITHUB_ENV
             fi
 
       - name: Install OpenSSL Development Packages
