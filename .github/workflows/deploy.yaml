@@ -57,7 +57,7 @@ jobs:
           
       - name: Set OpenSSL Environment Variables for Build
         run: |
-             echo "OPENSSL_DIR=/usr" >> $GITHUB_ENV
+             echo "OPENSSL_DIR=/usr/include/ssl" >> $GITHUB_ENV
              echo "PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig" >> $GITHUB_ENV
 
       - name: Install Node.js and NPM
