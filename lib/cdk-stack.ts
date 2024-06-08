@@ -30,7 +30,7 @@ export class CdkStack extends cdk.Stack {
     const fat_lambda = new lambda.Function(this, `NexusSSRFunction${envConfig.suffix}`, {
       runtime: lambda.Runtime.PROVIDED_AL2,
       handler: 'index.main',
-      code: lambda.Code.fromAsset("../nexus/target/lambda/nexus/bootstrap.zip"),
+      code: lambda.Code.fromAsset("../nexus/target/lambda/server/bootstrap.zip"),
       architecture: lambda.Architecture.ARM_64,
       memorySize: 128,
       environment: {
@@ -93,6 +93,14 @@ export class CdkStack extends cdk.Stack {
         type: dynamodb.AttributeType.STRING,
       }
     });
+
+    // table.addGlobalSecondaryIndex({
+    //   indexName: 'games_bought-index',
+    //   partitionKey: {
+    //     name: 'games_bought',
+    //     type: dynamodb.AttributeType.,
+    //   }
+    // })
   }
 
   private loadConfig(stage: string): NexusConfig {
