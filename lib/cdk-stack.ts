@@ -125,20 +125,6 @@ export class CdkStack extends cdk.Stack {
       tlsPolicy: ses.ConfigurationSetTlsPolicy.REQUIRE,
       configurationSetName: `NexusTransactionalEmailConfigurationSet${stage}`,
     });
-    const ses_tracking_options = new ses.ConfigurationSetEventDestination(this, `NexusSESTrackingOptions${stage}`, {
-      configurationSet: configuration_set,
-      destination: {
-        // TODO: fix?
-        dimensions: [
-          {
-            defaultValue: '',
-            name: '',
-            source: ses.CloudWatchDimensionSource.EMAIL_HEADER
-          }
-        ],
-        topic: sns_topic
-      }
-    });
     const email = 'andrew' + (is_prod ? `` : `+${stage}`) + '@projectGlint.com'
     const email_identity = new ses.EmailIdentity(this, `VerifiedEmailIdentity${stage}`, {
       identity: { value: email },
@@ -152,24 +138,21 @@ export class CdkStack extends cdk.Stack {
         })
       ]
     });
-    // const ses_tracking_options = new ses.CfnConfigurationSetEventDestination(this, `SESTrackingOptions${stage}`, {
-    //   configurationSetName: configuration_set.name,
-    //   eventDestination: {
-    //     matchingEventTypes: ['bounce', 'complaint'],
-    //     cloudWatchDestination: {
-    //       dimensionConfigurations: [
-    //         {
-    //           defaultDimensionValue: email,
-    //           dimensionName: 'email',
-    //           dimensionValueSource: 'messageTag'
-    //         }
-    //       ]
-    //     },
-    //     enabled: true,
-    //   }
-    // });
     const sns_topic = new sns.Topic(this, `NexusSESNotificationTopic${stage}`, {
       displayName: `SES Notifications ${stage}`
+    });
+    const ses_tracking_options = new ses.ConfigurationSetEventDestination(this, `NexusSESTrackingOptions${stage}`, {
+      configurationSet: configuration_set,
+      configurationSetEventDestinationName: `NexusConfigurationSet${stage}`,
+      destination: {
+        topic: sns_topic
+      },
+      events: [
+        ses.EmailSendingEvent.BOUNCE,
+        ses.EmailSendingEvent.COMPLAINT,
+        ses.EmailSendingEvent.REJECT,
+        ses.EmailSendingEvent.RENDERING_FAILURE,
+      ]
     });
     sns_topic.addSubscription(
       new sns_subscriptions.EmailSubscription(`andrew@projectGlint.com`)
