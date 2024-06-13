@@ -7,6 +7,14 @@ import * as apigateway from 'aws-cdk-lib/aws-apigatewayv2';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as integrations from 'aws-cdk-lib/aws-apigatewayv2-integrations';
+import * as budgets from 'aws-cdk-lib/aws-budgets';
+import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
+import * as aws_logs from 'aws-cdk-lib/aws-logs';
+import * as wafv2 from 'aws-cdk-lib/aws-wafv2';
+import * as ses from 'aws-cdk-lib/aws-ses';
+import * as sns from 'aws-cdk-lib/aws-sns';
+import * as sns_subscriptions from 'aws-cdk-lib/aws-sns-subscriptions';
+import * as cloudwatch_actions from 'aws-cdk-lib/aws-cloudwatch-actions';
 
 import { Construct } from 'constructs';
 
@@ -17,17 +25,14 @@ interface MyStackProps extends cdk.StackProps {
 export class CdkStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: MyStackProps) {
     super(scope, id, props);
-
-    const envConfig = this.loadConfig(props?.stage || 'unknown');
-
-    const bucket = new s3.Bucket(this, `NexusBucket${envConfig.suffix}`, {
-      bucketName: `nexus-static-asset-bucket${envConfig.suffix}`,
+    const stage = props?.stage || 'dev';
+    const is_prod = stage == 'prod';
+    const bucket = new s3.Bucket(this, `NexusBucket${stage}`, {
+      bucketName: `nexus-static-asset-bucket${stage}`,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
-
-    let stripe_secret_key = props?.stage == 'prod' ? "" : "";
-
-    const fat_lambda = new lambda.Function(this, `NexusSSRFunction${envConfig.suffix}`, {
+    let stripe_secret_key = process.env.STRIPE_SECRET_KEY!;
+    const fat_lambda = new lambda.Function(this, `NexusSSRFunction${stage}`, {
       runtime: lambda.Runtime.PROVIDED_AL2,
       handler: 'index.main',
       code: lambda.Code.fromAsset("../nexus/target/lambda/server/bootstrap.zip"),
@@ -35,49 +40,71 @@ export class CdkStack extends cdk.Stack {
       memorySize: 128,
       environment: {
         "STRIPE_SECRET_KEY": stripe_secret_key
-      }
+      },
+      timeout: cdk.Duration.millis(3000),
+      logGroup: new aws_logs.LogGroup(this, `NexusLambdaLogGroup${stage}`, {
+        retention: aws_logs.RetentionDays.FIVE_DAYS,
+      })
     });
-
-    const lambda_integration = new integrations.HttpLambdaIntegration(`LambdaIntegration${envConfig.suffix}`, fat_lambda);
-
-    const httpApi = new apigateway.HttpApi(this, 'HttpApi', {
+    const lambda_integration = new integrations.HttpLambdaIntegration(`LambdaIntegration${stage}`, fat_lambda);
+    const http_api = new apigateway.HttpApi(this, `HttpApi${stage}`, {
       defaultIntegration: lambda_integration,
     });
-    httpApi.addRoutes({
+    http_api.addRoutes({
       path: '/',
       methods: [apigateway.HttpMethod.GET],
       integration: lambda_integration
     });
-
-    const cf_distribution = new cloudfront.Distribution(this, `NexusDistribution${envConfig.suffix}`, {
+    const webAcl = new wafv2.CfnWebACL(this, `NexusWebACL${stage}`, {
+      defaultAction: { allow: {} },
+      scope: 'CLOUDFRONT',
+      visibilityConfig: {
+        cloudWatchMetricsEnabled: true,
+        metricName: 'webACL',
+        sampledRequestsEnabled: true,
+      },
+      rules: [
+        {
+          name: 'AWS-AWSManagedRulesCommonRuleSet',
+          priority: 1,
+          overrideAction: { none: {} },
+          statement: {
+            managedRuleGroupStatement: {
+              vendorName: 'AWS',
+              name: 'AWSManagedRulesCommonRuleSet',
+            },
+          },
+          visibilityConfig: {
+            cloudWatchMetricsEnabled: true,
+            metricName: 'AWS-AWSManagedRulesCommonRuleSet',
+            sampledRequestsEnabled: true,
+          },
+        },
+      ],
+    });
+    const cf_distribution = new cloudfront.Distribution(this, `NexusDistribution${stage}`, {
       defaultBehavior: {
-        origin: new cf_origins.HttpOrigin(`${httpApi.httpApiId}.execute-api.${this.region}.amazonaws.com`),
-        viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+        origin: new cf_origins.HttpOrigin(`${http_api.httpApiId}.execute-api.${this.region}.amazonaws.com`),
+        viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.HTTPS_ONLY,
         allowedMethods: cloudfront.AllowedMethods.ALLOW_ALL,
       },
       additionalBehaviors: {
         '/pkg/*': {
           origin: new cf_origins.S3Origin(bucket),
-          viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+          viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.HTTPS_ONLY,
         }
       },
-      comment: `${envConfig.suffix}`,
+      priceClass: cloudfront.PriceClass.PRICE_CLASS_ALL,
+      comment: `${stage}`,
+      webAclId: webAcl.attrId
     });
 
-    const table = new dynamodb.Table(this, `NexusDynamoTable${envConfig.suffix}`, {
-      tableName: `Users${envConfig.suffix}`,
+    const table_suffix = is_prod ? '' : `${stage}`;
+    const table = new dynamodb.TableV2(this, `NexusDynamoTable${stage}`, {
+      tableName: `Users${table_suffix}`,
       partitionKey: { name: 'email', type: dynamodb.AttributeType.STRING },
-      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      billing: dynamodb.Billing.onDemand()
     });
-
-    table.addGlobalSecondaryIndex({
-      indexName: 'user_uuid-index',
-      partitionKey: {
-        name: 'user_uuid',
-        type: dynamodb.AttributeType.STRING,
-      }
-    });
-
     table.addGlobalSecondaryIndex({
       indexName: 'session_id-index',
       partitionKey: {
@@ -91,36 +118,353 @@ export class CdkStack extends cdk.Stack {
       partitionKey: {
         name: 'email_verification_uuid',
         type: dynamodb.AttributeType.STRING,
+      },
+    });
+    const configuration_set = new ses.ConfigurationSet(this, `NexusSESConfigurationSet${stage}`, {
+      reputationMetrics: true,
+      tlsPolicy: ses.ConfigurationSetTlsPolicy.REQUIRE,
+      configurationSetName: `NexusTransactionalEmailConfigurationSet${stage}`,
+    });
+    const ses_tracking_options = new ses.ConfigurationSetEventDestination(this, `NexusSESTrackingOptions${stage}`, {
+      configurationSet: configuration_set,
+      destination: {
+        // TODO: fix?
+        dimensions: [
+          {
+            defaultValue: '',
+            name: '',
+            source: ses.CloudWatchDimensionSource.EMAIL_HEADER
+          }
+        ],
+        topic: sns_topic
       }
     });
-
-    // table.addGlobalSecondaryIndex({
-    //   indexName: 'games_bought-index',
-    //   partitionKey: {
-    //     name: 'games_bought',
-    //     type: dynamodb.AttributeType.,
+    const email = 'andrew' + (is_prod ? `` : `+${stage}`) + '@projectGlint.com'
+    const email_identity = new ses.EmailIdentity(this, `VerifiedEmailIdentity${stage}`, {
+      identity: { value: email },
+      configurationSet: configuration_set
+    });
+    const ses_policy = new iam.Policy(this, `SesSendEmailPolicy${stage}`, {
+      statements: [
+        new iam.PolicyStatement({
+          actions: ['ses:SendEmail', 'ses:SendRawEmail'],
+          resources: [fat_lambda.functionArn]
+        })
+      ]
+    });
+    // const ses_tracking_options = new ses.CfnConfigurationSetEventDestination(this, `SESTrackingOptions${stage}`, {
+    //   configurationSetName: configuration_set.name,
+    //   eventDestination: {
+    //     matchingEventTypes: ['bounce', 'complaint'],
+    //     cloudWatchDestination: {
+    //       dimensionConfigurations: [
+    //         {
+    //           defaultDimensionValue: email,
+    //           dimensionName: 'email',
+    //           dimensionValueSource: 'messageTag'
+    //         }
+    //       ]
+    //     },
+    //     enabled: true,
     //   }
-    // })
+    // });
+    const sns_topic = new sns.Topic(this, `NexusSESNotificationTopic${stage}`, {
+      displayName: `SES Notifications ${stage}`
+    });
+    sns_topic.addSubscription(
+      new sns_subscriptions.EmailSubscription(`andrew@projectGlint.com`)
+    );
+    const sns_action = new cloudwatch_actions.SnsAction(sns_topic);
+    // TODO: Add SNS and lambda to shut off cloudfront distribution if budget exceeds maximum
+    const budget = new budgets.CfnBudget(this, `NexusBudget${stage}`, {
+      budget: {
+        budgetType: 'COST',
+        timeUnit: 'MONTHLY',
+        budgetLimit: {
+          amount: 100,
+          unit: 'USD',
+        },
+      },
+      notificationsWithSubscribers: [
+        {
+          notification: {
+            notificationType: 'FORECASTED',
+            comparisonOperator: 'GREATER_THAN',
+            threshold: 100,
+            thresholdType: 'PERCENTAGE',
+          },
+          subscribers: [
+            {
+              subscriptionType: 'EMAIL',
+              address: 'andrew@ProjectGlint.com',
+            },
+            {
+              subscriptionType: 'EMAIL',
+              address: 'apeterson2775@gmail.com'
+            }
+          ],
+        },
+      ],
+    });
+    // we'll just have api gateway alarms for now
+    const cloudfront_alarms: cloudwatch.Alarm[] = [
+    ];
+    // 4XX errors, 5XX errors, Latency Alarm
+    const api_gateway_alarms = [
+      new cloudwatch.Alarm(this, `APIGateway4XXErrorAlarm${stage}`, {
+        metric: http_api.metricClientError({
+          period: cdk.Duration.seconds(60),
+          statistic: 'Average',
+        }),
+        threshold: 0.05,
+        evaluationPeriods: 5,
+        datapointsToAlarm: 5,
+        comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+        treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+        alarmDescription: 'Alarm when API Gateway has >5% of client errors',
+      }),
+      new cloudwatch.Alarm(this, `APIGateway5XXErrorAlarm${stage}`, {
+        metric: http_api.metricServerError({
+          period: cdk.Duration.seconds(60),
+          statistic: 'Average',
+        }),
+        threshold: 0.05,
+        evaluationPeriods: 3,
+        datapointsToAlarm: 3,
+        comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+        treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+        alarmDescription: 'Alarm when API Gateway has >5% of server errors',
+      }),
+      new cloudwatch.Alarm(this, `APIGatewayLatencyAlarm${stage}`, {
+        metric: http_api.metricLatency({
+          period: cdk.Duration.seconds(60),
+          statistic: 'p90',
+        }),
+        threshold: 2000.00,
+        evaluationPeriods: 5,
+        datapointsToAlarm: 5,
+        comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+        treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+        alarmDescription: 'Alarm when API Gateway has increased latency'
+      }),
+    ];
+    // SuccessfulRequestLatency, SystemErrors, TableReadThrottles PUT, TableWriteThrottles,
+    const dynamo_alarms = [
+      new cloudwatch.Alarm(this, `DynamoDBSuccessfulRequestLatency${stage}`, {
+        metric: table.metricSuccessfulRequestLatency({
+          statistic: 'Average',
+          period: cdk.Duration.seconds(60),
+        }),
+        threshold: 20,
+        evaluationPeriods: 10,
+        datapointsToAlarm: 10,
+        comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+        treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+        alarmDescription: `DynamoDB Latency Too High`
+      }),
+      new cloudwatch.Alarm(this, `DynamoDBSystemErrors${stage}`, {
+        metric: table.metricSystemErrorsForOperations({
+          statistic: 'Sum',
+          period: cdk.Duration.seconds(60),
+        }),
+        threshold: 20,
+        evaluationPeriods: 15,
+        datapointsToAlarm: 15,
+        comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+        treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+        alarmDescription: `DynamoDB System Errors`
+      }),
+      new cloudwatch.Alarm(this, `DynamoDBTableReadThrottles${stage}`, {
+        metric: table.metricThrottledRequestsForOperation(dynamodb.Operation.GET_ITEM, {
+          statistic: 'Sum',
+          period: cdk.Duration.seconds(60),
+        }),
+        threshold: 50,
+        evaluationPeriods: 5,
+        datapointsToAlarm: 5,
+        comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+        treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+        alarmDescription: `DynamoDB Read Throttles (GET_ITEM)`
+      }),
+      new cloudwatch.Alarm(this, `DynamoDBTableWriteThrottles${stage}`, {
+        metric: table.metricThrottledRequestsForOperation(dynamodb.Operation.PUT_ITEM, {
+          statistic: 'Sum',
+          period: cdk.Duration.seconds(60),
+        }),
+        threshold: 50,
+        evaluationPeriods: 5,
+        datapointsToAlarm: 5,
+        comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+        treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+        alarmDescription: `DynamoDB Write Throttles (PUT_ITEM)`
+      }),
+    ];
+    const accountConcurrencyMetric = new cloudwatch.Metric({
+      namespace: 'AWS/Lambda',
+      metricName: 'ConcurrentExecutions',
+      statistic: 'Maximum',
+      period: cdk.Duration.seconds(60),
+    });
+    // account concurrency, errors, throttles, latency/duration
+    const lambda_alarms: cloudwatch.Alarm[] = [
+      new cloudwatch.Alarm(this, `LambdaConcurrentExecutionsOverAccountMaximum${stage}`, {
+        metric: accountConcurrencyMetric,
+        threshold: 500,
+        evaluationPeriods: 10,
+        datapointsToAlarm: 10,
+        comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+        alarmDescription: 'This alarm monitors if the concurrency of your Lambda functions is approaching the Region-level concurrency limit of your account.',
+        treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+      }),
+      new cloudwatch.Alarm(this, `FatLambdaErrors${stage}`, {
+        metric: fat_lambda.metricErrors({
+          period: cdk.Duration.seconds(60),
+          statistic: 'Sum'
+        }),
+        threshold: 5,
+        evaluationPeriods: 3,
+        datapointsToAlarm: 3,
+        comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+        treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+        alarmDescription: 'Errors when errors of AWS Lambda are too high'
+      }),
+      new cloudwatch.Alarm(this, `FatLambdaThrottles${stage}`, {
+        metric: fat_lambda.metricThrottles({
+          period: cdk.Duration.seconds(60),
+          statistic: 'Sum'
+        }),
+        threshold: 5,
+        evaluationPeriods: 5,
+        datapointsToAlarm: 5,
+        comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+        treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+        alarmDescription: 'Errors when throttles of AWS Lambda are too high'
+      })
+      ,
+      new cloudwatch.Alarm(this, `FatLambdaDuration${stage}`, {
+        metric: fat_lambda.metricDuration({
+          period: cdk.Duration.seconds(60),
+          statistic: 'p90'
+        }),
+        threshold: 2000.0,
+        evaluationPeriods: 15,
+        datapointsToAlarm: 15,
+        comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+        treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+        alarmDescription: 'Errors when throttles of AWS Lambda are too high'
+      })
+    ];
+    const ses_alarms: cloudwatch.Alarm[] = [
+      new cloudwatch.Alarm(this, `SESBounce${stage}`, {
+        metric: new cloudwatch.Metric({
+          namespace: 'AWS/SES',
+          metricName: 'BounceRate',
+          dimensionsMap: {
+            "Identity": email
+          },
+          statistic: 'Average',
+          period: cdk.Duration.hours(3),
+        }),
+        threshold: 0.05,
+        evaluationPeriods: 1,
+        comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+        treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+        alarmDescription: `Alarm when SES Bounce Rate exceeds threshold`,
+        actionsEnabled: true,
+      }),
+      new cloudwatch.Alarm(this, `SESComplaint${stage}`, {
+        metric: new cloudwatch.Metric({
+          namespace: 'AWS/SES',
+          metricName: 'ComplaintRate',
+          dimensionsMap: {
+            "Identity": email
+          },
+          statistic: 'Average',
+          period: cdk.Duration.hours(3),
+        }),
+        threshold: 0.01,
+        evaluationPeriods: 1,
+        comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+        treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+        alarmDescription: `Alarm when SES Complaint Rate exceeds threshold`,
+        actionsEnabled: true,
+      })
+    ];
+    ses_alarms.forEach((sns_alarm) => {
+      sns_alarm.addAlarmAction(sns_action);
+    });
+    const alarms = [
+      ...ses_alarms,
+      ...cloudfront_alarms,
+      ...api_gateway_alarms,
+      ...dynamo_alarms,
+      ...lambda_alarms
+    ];
+    const dashboard_period = cdk.Duration.hours(3);
+    const dashboard = new cloudwatch.Dashboard(this, `NexusDashboard${stage}`, {
+      dashboardName: `NexusDashboard${stage}`,
+      widgets: [
+        [
+          new cloudwatch.TextWidget({
+            markdown: `# Nexus Dashboard ${stage}`,
+            width: 24,
+            height: 1,
+          })
+        ],
+        [
+          new cloudwatch.GraphWidget({
+            title: `API Gateway Latency`,
+            left: [http_api.metricLatency()],
+            width: 8,
+            period: dashboard_period,
+          }),
+          new cloudwatch.GraphWidget({
+            title: `Lambda Invocations`,
+            left: [fat_lambda.metricInvocations()],
+            width: 8,
+            period: dashboard_period,
+          }),
+          new cloudwatch.GraphWidget({
+            title: `Lambda Errors`,
+            left: [fat_lambda.metricErrors()],
+            width: 8,
+            period: dashboard_period,
+          })
+        ],
+        [
+          new cloudwatch.GraphWidget({
+            title: 'DynamoDB Read Capacity',
+            left: [table.metricConsumedReadCapacityUnits()],
+            width: 12,
+            period: dashboard_period,
+          }), new cloudwatch.GraphWidget({
+            title: 'DynamoDB Write Capacity',
+            left: [table.metricConsumedWriteCapacityUnits()],
+            width: 12,
+            period: dashboard_period,
+          })
+        ],
+        [
+          new cloudwatch.GraphWidget({
+            title: 'CloudFront Requests',
+            left: [cf_distribution.metricRequests()],
+            width: 12,
+            period: dashboard_period,
+          }), new cloudwatch.GraphWidget({
+            title: 'Static Asset S3 Bucket Size',
+            left: [new cloudwatch.Metric({
+              namespace: `AWS/S3`,
+              metricName: `BucketSizeBytes`,
+              statistic: 'Average',
+              period: dashboard_period
+            })],
+            width: 12
+          })
+        ],
+        [
+          new cloudwatch.AlarmStatusWidget({ alarms: alarms, width: 24, title: `Alarms` })
+        ]
+      ]
+    });
   }
-
-  private loadConfig(stage: string): NexusConfig {
-    // Load configuration based on the environment
-    // This could be from a file, process.env, or any other source
-    switch (stage) {
-      case 'dev':
-        return {
-          suffix: '-dev'
-        }
-      case 'staging':
-        return { suffix: '-staging' };
-      case 'prod':
-        return { suffix: '' };
-      default:
-        throw new Error(`Unknown environment: ${stage}`);
-    }
-  }
-}
-
-interface NexusConfig {
-  suffix: string;
 }
