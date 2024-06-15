@@ -2,28 +2,21 @@
 import 'source-map-support/register';
 import * as cdk from 'aws-cdk-lib';
 import { CdkStack } from '../lib/cdk-stack';
+import { WafStack } from '../lib/waf-stack';
 
 const app = new cdk.App();
-const stage = process.env.STAGE || 'dev';  // Default to 'dev' if STAGE is not set
+const stage = process.env.STAGE || 'dev';
 if (stage != 'dev' && stage != 'prod' && stage != 'staging') {
   throw new Error("stage incorrect")
 }
-new CdkStack(app, `NexusCdkStack-${stage}`, {
-  /* If you don't specify 'env', this stack will be environment-agnostic.
-   * Account/Region-dependent features and context lookups will not work,
-   * but a single synthesized template can be deployed anywhere. */
-
-  /* Uncomment the next line to specialize this stack for the AWS Account
-   * and Region that are implied by the current CLI configuration. */
-  // env: { account: process.env.CDK_DEFAULT_ACCOUNT, region: process.env.CDK_DEFAULT_REGION },
-
+new WafStack(app, `WafCdkStack-${stage}`, {
   stage: stage,
-  description: `Stack created by CDK code (Rust Leptos Project) ${stage}`
-
-  /* Uncomment the next line if you know exactly what Account and Region you
-   * want to deploy the stack to. */
-  // env: { account: '123456789012', region: 'us-east-1' },
-
-  /* For more information, see https://docs.aws.amazon.com/cdk/latest/guide/environments.html */
-
+  description: `Stack created by CDK code for WebACL (Rust Leptos Project) ${stage}`,
+  env: {
+    region: 'us-east-1'
+  }
+});
+new CdkStack(app, `NexusCdkStack-${stage}`, {
+  stage: stage,
+  description: `Stack created by CDK code (Rust Leptos Project) ${stage}`,
 });
