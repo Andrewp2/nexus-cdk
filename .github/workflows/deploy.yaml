@@ -5,7 +5,7 @@ on:
     branches: [dev, staging, release]
   workflow_dispatch:
 
-env: 
+env:
     RUSTFLAGS: --cfg=web_sys_unstable_apis
 
 jobs:
@@ -15,7 +15,7 @@ jobs:
       - name: Checkout CDK repository
         uses: actions/checkout@v4
         with:
-          path: cdk 
+          path: cdk
 
       - name: Checkout Leptos Website Repository
         uses: actions/checkout@v4
@@ -54,7 +54,7 @@ jobs:
 
       - name: Install OpenSSL Development Packages
         run: sudo apt-get update && sudo apt-get install -y libssl-dev pkg-config
-          
+
       - name: Set OpenSSL Environment Variables for Build
         run: |
              echo "PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig" >> $GITHUB_ENV
@@ -71,7 +71,7 @@ jobs:
       - name: Install NPM Packages
         run: npm install
         working-directory: cdk
-      
+
       - name: Install AWS CDK
         run: 'sudo npm install -g aws-cdk'
 
@@ -97,7 +97,7 @@ jobs:
         run: cargo install cargo-leptos --version 0.2.6
 
       - name: Build Leptos Website
-        run: cargo leptos build --release 
+        run: cargo leptos build --release
         working-directory: nexus
 
       - name: Build Production Server Binary
@@ -109,7 +109,7 @@ jobs:
         working-directory: cdk
 
       - name: CDK Deploy
-        run: cdk deploy --require-approval never --context stage=${{ env.STAGE }}
+        run: cdk deploy --require-approval never --context stage=${{ env.STAGE }} --all
         working-directory: cdk
 
       - name: Upload assets to S3
