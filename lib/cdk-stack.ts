@@ -46,6 +46,7 @@ export class CdkStack extends cdk.Stack {
         retention: aws_logs.RetentionDays.FIVE_DAYS,
       })
     });
+    // TODO: Add SecretsManager permission to lambda
     const lambda_integration = new integrations.HttpLambdaIntegration(`LambdaIntegration${stage}`, fat_lambda);
     const http_api = new apigateway.HttpApi(this, `HttpApi${stage}`, {
       defaultIntegration: lambda_integration,
@@ -233,10 +234,28 @@ export class CdkStack extends cdk.Stack {
     ];
     // SuccessfulRequestLatency, SystemErrors, TableReadThrottles PUT, TableWriteThrottles,
     const dynamo_alarms = [
-      new cloudwatch.Alarm(this, `DynamoDBSuccessfulRequestLatency${stage}`, {
+      new cloudwatch.Alarm(this, `DynamoDBSuccessfulRequestLatencyPutItem${stage}`, {
         metric: table.metricSuccessfulRequestLatency({
           statistic: 'Average',
           period: cdk.Duration.seconds(60),
+          dimensionsMap: {
+            Operation: dynamodb.Operation.PUT_ITEM
+          }
+        }),
+        threshold: 20,
+        evaluationPeriods: 10,
+        datapointsToAlarm: 10,
+        comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+        treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+        alarmDescription: `DynamoDB Latency Too High`
+      }),
+      new cloudwatch.Alarm(this, `DynamoDBSuccessfulRequestLatencyGetItem${stage}`, {
+        metric: table.metricSuccessfulRequestLatency({
+          statistic: 'Average',
+          period: cdk.Duration.seconds(60),
+          dimensionsMap: {
+            Operation: dynamodb.Operation.GET_ITEM
+          }
         }),
         threshold: 20,
         evaluationPeriods: 10,
@@ -249,10 +268,11 @@ export class CdkStack extends cdk.Stack {
         metric: table.metricSystemErrorsForOperations({
           statistic: 'Sum',
           period: cdk.Duration.seconds(60),
+          operations: [dynamodb.Operation.GET_ITEM, dynamodb.Operation.PUT_ITEM]
         }),
         threshold: 20,
-        evaluationPeriods: 15,
-        datapointsToAlarm: 15,
+        evaluationPeriods: 5,
+        datapointsToAlarm: 5,
         comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
         treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
         alarmDescription: `DynamoDB System Errors`
