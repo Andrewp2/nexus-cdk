@@ -28,7 +28,7 @@ export class CdkStack extends cdk.Stack {
     const stage = props?.stage || 'dev';
     const is_prod = stage == 'prod';
     const bucket = new s3.Bucket(this, `NexusBucket${stage}`, {
-      bucketName: `nexus-static-asset-bucket${stage}`,
+      bucketName: `nexus-static-asset-bucket-${stage}`,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
     let stripe_secret_key = process.env.STRIPE_SECRET_KEY!;
