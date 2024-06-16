@@ -20,6 +20,7 @@ import { Construct } from 'constructs';
 
 interface MyStackProps extends cdk.StackProps {
   stage: 'dev' | 'staging' | 'prod';
+  webAclArn: string
 }
 
 export class CdkStack extends cdk.Stack {
@@ -56,34 +57,6 @@ export class CdkStack extends cdk.Stack {
       methods: [apigateway.HttpMethod.GET],
       integration: lambda_integration
     });
-    const webAcl = new wafv2.CfnWebACL(this, `NexusWebACL${stage}`, {
-      defaultAction: { allow: {} },
-      scope: 'CLOUDFRONT',
-      visibilityConfig: {
-        cloudWatchMetricsEnabled: true,
-        metricName: 'webACL',
-        sampledRequestsEnabled: true,
-      },
-      rules: [
-        {
-          name: 'AWS-AWSManagedRulesCommonRuleSet',
-          priority: 1,
-          overrideAction: { none: {} },
-          statement: {
-            managedRuleGroupStatement: {
-              vendorName: 'AWS',
-              name: 'AWSManagedRulesCommonRuleSet',
-            },
-          },
-          visibilityConfig: {
-            cloudWatchMetricsEnabled: true,
-            metricName: 'AWS-AWSManagedRulesCommonRuleSet',
-            sampledRequestsEnabled: true,
-          },
-        },
-      ],
-    });
-    let webAclArn = cdk.Fn.importValue(`WebAclArn${stage}`);
     const cf_distribution = new cloudfront.Distribution(this, `NexusDistribution${stage}`, {
       defaultBehavior: {
         origin: new cf_origins.HttpOrigin(`${http_api.httpApiId}.execute-api.${this.region}.amazonaws.com`),
@@ -98,7 +71,7 @@ export class CdkStack extends cdk.Stack {
       },
       priceClass: cloudfront.PriceClass.PRICE_CLASS_ALL,
       comment: `${stage}`,
-      webAclId: webAclArn
+      webAclId: props?.webAclArn
     });
 
     const table_suffix = is_prod ? '' : `${stage}`;

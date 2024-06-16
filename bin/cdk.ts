@@ -9,7 +9,7 @@ const stage = process.env.STAGE || 'dev';
 if (stage != 'dev' && stage != 'prod' && stage != 'staging') {
   throw new Error("stage incorrect")
 }
-new WafStack(app, `WafCdkStack-${stage}`, {
+let waf_stack = new WafStack(app, `WafCdkStack-${stage}`, {
   stage: stage,
   description: `Stack created by CDK code for WebACL (Rust Leptos Project) ${stage}`,
   env: {
@@ -19,4 +19,5 @@ new WafStack(app, `WafCdkStack-${stage}`, {
 new CdkStack(app, `NexusCdkStack-${stage}`, {
   stage: stage,
   description: `Stack created by CDK code (Rust Leptos Project) ${stage}`,
+  webAclArn: waf_stack.webAclArn
 });
