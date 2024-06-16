@@ -62,7 +62,7 @@ export class WafStack extends cdk.Stack {
 
     new cdk.CfnOutput(this, `WebAclArn${stage}`, {
       value: this.webAclArn,
-      exportName: `WebAclArn-${id}`
+      exportName: `WebAclArn${stage}`
     });
   }
 }

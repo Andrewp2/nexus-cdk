@@ -83,7 +83,7 @@ export class CdkStack extends cdk.Stack {
         },
       ],
     });
-    let webAclArn = cdk.Fn.importValue('WafStack:WebAclArn');
+    let webAclArn = cdk.Fn.importValue(`WebAclArn${stage}`);
     const cf_distribution = new cloudfront.Distribution(this, `NexusDistribution${stage}`, {
       defaultBehavior: {
         origin: new cf_origins.HttpOrigin(`${http_api.httpApiId}.execute-api.${this.region}.amazonaws.com`),
