@@ -89,11 +89,13 @@ jobs:
       - name: Set up Rust cache
         uses: Swatinem/rust-cache@v2
         with:
-          working-directory: nexus
+          cache-on-failure: true
+          workspaces: "nexus/app -> target
+          nexus/frontend -> target
+          nexus/server -> target"
 
-      - name: Install cargo-lambda and cargo-leptos
-        run: |
-          cargo install cargo-lambda
+      - name: Install cargo-lambda
+        run: cargo install cargo-lambda
 
       - name: Install cargo-leptos
         run: cargo install cargo-leptos --version 0.2.17

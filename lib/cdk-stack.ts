@@ -75,7 +75,7 @@ export class CdkStack extends cdk.Stack {
 
     const table_suffix = is_prod ? '' : `${stage}`;
     const table = new dynamodb.TableV2(this, `NexusDynamoTable${stage}`, {
-      tableName: `Users${table_suffix}`,
+      tableName: `Users-${table_suffix}`,
       partitionKey: { name: 'email', type: dynamodb.AttributeType.STRING },
       billing: dynamodb.Billing.onDemand()
     });
