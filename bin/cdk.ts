@@ -14,10 +14,12 @@ let waf_stack = new WafStack(app, `WafCdkStack-${stage}`, {
   description: `Stack created by CDK code for WebACL (Rust Leptos Project) ${stage}`,
   env: {
     region: 'us-east-1'
-  }
+  },
+  crossRegionReferences: true,
 });
 new CdkStack(app, `NexusCdkStack-${stage}`, {
   stage: stage,
   description: `Stack created by CDK code (Rust Leptos Project) ${stage}`,
-  webAclArn: waf_stack.webAclArn
+  webAclArn: waf_stack.webAclArn,
+  crossRegionReferences: true,
 });

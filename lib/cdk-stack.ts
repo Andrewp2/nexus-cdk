@@ -10,7 +10,6 @@ import * as integrations from 'aws-cdk-lib/aws-apigatewayv2-integrations';
 import * as budgets from 'aws-cdk-lib/aws-budgets';
 import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
 import * as aws_logs from 'aws-cdk-lib/aws-logs';
-import * as wafv2 from 'aws-cdk-lib/aws-wafv2';
 import * as ses from 'aws-cdk-lib/aws-ses';
 import * as sns from 'aws-cdk-lib/aws-sns';
 import * as sns_subscriptions from 'aws-cdk-lib/aws-sns-subscriptions';
