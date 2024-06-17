@@ -33,7 +33,7 @@ export class CdkStack extends cdk.Stack {
     });
     let stripe_secret_key = process.env.STRIPE_SECRET_KEY!;
     const fat_lambda = new lambda.Function(this, `NexusSSRFunction${stage}`, {
-      runtime: lambda.Runtime.PROVIDED_AL2,
+      runtime: lambda.Runtime.PROVIDED_AL2023,
       handler: 'index.main',
       code: lambda.Code.fromAsset("../nexus/target/lambda/server/bootstrap.zip"),
       architecture: lambda.Architecture.ARM_64,
