@@ -179,6 +179,7 @@ export class CdkStack extends cdk.Stack {
         comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
         treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
         alarmDescription: 'Alarm when API Gateway has >5% of client errors',
+        alarmName: `APIGateway4XXErrorAlarm${stage}`
       }),
       new cloudwatch.Alarm(this, `APIGateway5XXErrorAlarm${stage}`, {
         metric: http_api.metricServerError({
@@ -191,6 +192,7 @@ export class CdkStack extends cdk.Stack {
         comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
         treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
         alarmDescription: 'Alarm when API Gateway has >5% of server errors',
+        alarmName: `APIGateway5XXErrorAlarm${stage}`
       }),
       new cloudwatch.Alarm(this, `APIGatewayLatencyAlarm${stage}`, {
         metric: http_api.metricLatency({
@@ -202,7 +204,8 @@ export class CdkStack extends cdk.Stack {
         datapointsToAlarm: 5,
         comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
         treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
-        alarmDescription: 'Alarm when API Gateway has increased latency'
+        alarmDescription: 'Alarm when API Gateway has increased latency',
+        alarmName: `APIGatewayLatencyAlarm${stage}`
       }),
     ];
     // SuccessfulRequestLatency, SystemErrors, TableReadThrottles PUT, TableWriteThrottles,
@@ -220,7 +223,8 @@ export class CdkStack extends cdk.Stack {
         datapointsToAlarm: 10,
         comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
         treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
-        alarmDescription: `DynamoDB Latency Too High`
+        alarmDescription: `DynamoDB Latency Too High`,
+        alarmName: `DynamoDBSuccessfulRequestLatencyPutItem${stage}`
       }),
       new cloudwatch.Alarm(this, `DynamoDBSuccessfulRequestLatencyGetItem${stage}`, {
         metric: table.metricSuccessfulRequestLatency({
@@ -235,7 +239,8 @@ export class CdkStack extends cdk.Stack {
         datapointsToAlarm: 10,
         comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
         treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
-        alarmDescription: `DynamoDB Latency Too High`
+        alarmDescription: `DynamoDB Latency Too High`,
+        alarmName: `DynamoDBSuccessfulRequestLatencyGetItem${stage}`
       }),
       new cloudwatch.Alarm(this, `DynamoDBSystemErrors${stage}`, {
         metric: table.metricSystemErrorsForOperations({
@@ -248,7 +253,8 @@ export class CdkStack extends cdk.Stack {
         datapointsToAlarm: 5,
         comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
         treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
-        alarmDescription: `DynamoDB System Errors`
+        alarmDescription: `DynamoDB System Errors`,
+        alarmName: `DynamoDBSystemErrors${stage}`
       }),
       new cloudwatch.Alarm(this, `DynamoDBTableReadThrottles${stage}`, {
         metric: table.metricThrottledRequestsForOperation(dynamodb.Operation.GET_ITEM, {
@@ -260,7 +266,8 @@ export class CdkStack extends cdk.Stack {
         datapointsToAlarm: 5,
         comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
         treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
-        alarmDescription: `DynamoDB Read Throttles (GET_ITEM)`
+        alarmDescription: `DynamoDB Read Throttles (GET_ITEM)`,
+        alarmName: `DynamoDBTableReadThrottles${stage}`
       }),
       new cloudwatch.Alarm(this, `DynamoDBTableWriteThrottles${stage}`, {
         metric: table.metricThrottledRequestsForOperation(dynamodb.Operation.PUT_ITEM, {
@@ -272,7 +279,8 @@ export class CdkStack extends cdk.Stack {
         datapointsToAlarm: 5,
         comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
         treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
-        alarmDescription: `DynamoDB Write Throttles (PUT_ITEM)`
+        alarmDescription: `DynamoDB Write Throttles (PUT_ITEM)`,
+        alarmName: `DynamoDBTableWriteThrottles${stage}`
       }),
     ];
     const accountConcurrencyMetric = new cloudwatch.Metric({
@@ -291,6 +299,7 @@ export class CdkStack extends cdk.Stack {
         comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
         alarmDescription: 'This alarm monitors if the concurrency of your Lambda functions is approaching the Region-level concurrency limit of your account.',
         treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+        alarmName: `LambdaConcurrentExecutionsOverAccountMaximum${stage}`
       }),
       new cloudwatch.Alarm(this, `FatLambdaErrors${stage}`, {
         metric: fat_lambda.metricErrors({
@@ -302,7 +311,8 @@ export class CdkStack extends cdk.Stack {
         datapointsToAlarm: 3,
         comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
         treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
-        alarmDescription: 'Errors when errors of AWS Lambda are too high'
+        alarmDescription: 'Errors when errors of AWS Lambda are too high',
+        alarmName: `FatLambdaErrors${stage}`
       }),
       new cloudwatch.Alarm(this, `FatLambdaThrottles${stage}`, {
         metric: fat_lambda.metricThrottles({
@@ -314,7 +324,8 @@ export class CdkStack extends cdk.Stack {
         datapointsToAlarm: 5,
         comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
         treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
-        alarmDescription: 'Errors when throttles of AWS Lambda are too high'
+        alarmDescription: 'Errors when throttles of AWS Lambda are too high',
+        alarmName: `FatLambdaThrottles${stage}`
       })
       ,
       new cloudwatch.Alarm(this, `FatLambdaDuration${stage}`, {
@@ -327,7 +338,8 @@ export class CdkStack extends cdk.Stack {
         datapointsToAlarm: 15,
         comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
         treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
-        alarmDescription: 'Errors when throttles of AWS Lambda are too high'
+        alarmDescription: 'Errors when throttles of AWS Lambda are too high',
+        alarmName: `FatLambdaDuration${stage}`
       })
     ];
     const ses_alarms: cloudwatch.Alarm[] = [
@@ -347,6 +359,7 @@ export class CdkStack extends cdk.Stack {
         treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
         alarmDescription: `Alarm when SES Bounce Rate exceeds threshold`,
         actionsEnabled: true,
+        alarmName: `SESBounce${stage}`
       }),
       new cloudwatch.Alarm(this, `SESComplaint${stage}`, {
         metric: new cloudwatch.Metric({
@@ -364,6 +377,7 @@ export class CdkStack extends cdk.Stack {
         treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
         alarmDescription: `Alarm when SES Complaint Rate exceeds threshold`,
         actionsEnabled: true,
+        alarmName: `SESComplaint${stage}`
       })
     ];
     ses_alarms.forEach((sns_alarm) => {
