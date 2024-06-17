@@ -9,7 +9,6 @@ env:
 jobs:
   aws_cdk:
     runs-on: ubuntu-latest
-    needs: build_website
     steps:
       - name: Checkout CDK repository
         uses: actions/checkout@v4
