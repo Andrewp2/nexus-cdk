@@ -10,6 +10,18 @@ jobs:
   aws_cdk:
     runs-on: ubuntu-latest
     steps:
+      - name: Download Website Binary
+        uses: actions/download-artifact@v4
+        with:
+          name: website_binary
+          path: nexus/target/site/pkg/
+
+      - name: Download Server Binary
+        uses: actions/download-artifact@v4
+        with:
+          name: server_binary
+          path: nexus/target/lambda/server/bootstrap.zip
+
       - name: Checkout CDK repository
         uses: actions/checkout@v4
         with:
