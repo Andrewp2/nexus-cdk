@@ -1,0 +1,19 @@
+name: Build and Deploy Website to AWS
+
+on:
+  push:
+    branches: [staging, release]
+  workflow_dispatch:
+
+env:
+  RUSTFLAGS: --cfg=web_sys_unstable_apis
+
+jobs:
+  build_website:
+    runs-on: ubuntu-latest
+    uses: ./build_website.yaml
+
+  aws_cdk:
+    runs-on: ubuntu-latest
+    needs: build_website
+    uses: ./deploy_cdk.yaml
