@@ -4,6 +4,7 @@ import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
 import * as cf_origins from 'aws-cdk-lib/aws-cloudfront-origins';
 import * as apigateway from 'aws-cdk-lib/aws-apigatewayv2';
+import * as apigateway_authorizers from 'aws-cdk-lib/aws-apigatewayv2-authorizers';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as integrations from 'aws-cdk-lib/aws-apigatewayv2-integrations';
@@ -14,47 +15,60 @@ import * as ses from 'aws-cdk-lib/aws-ses';
 import * as sns from 'aws-cdk-lib/aws-sns';
 import * as sns_subscriptions from 'aws-cdk-lib/aws-sns-subscriptions';
 import * as cloudwatch_actions from 'aws-cdk-lib/aws-cloudwatch-actions';
+import * as acm from 'aws-cdk-lib/aws-certificatemanager';
+import * as kms from 'aws-cdk-lib/aws-kms';
 
 import { Construct } from 'constructs';
 
 interface MyStackProps extends cdk.StackProps {
   stage: 'dev' | 'staging' | 'prod';
-  webAclArn: string
+  webAclArn: string,
+  certificateArn: string,
 }
 
 export class CdkStack extends cdk.Stack {
-  constructor(scope: Construct, id: string, props?: MyStackProps) {
+  constructor(scope: Construct, id: string, props: MyStackProps) {
     super(scope, id, props);
-    const stage = props?.stage || 'dev';
+    const stage = props.stage || 'dev';
     const is_prod = stage == 'prod';
+    const domain_name = is_prod ? `projectglint.com` : `${stage}.projectglint.com`;
+    const acm_certificate = acm.Certificate.fromCertificateArn(this, `NexusCertificateFromArn${stage}`, props.certificateArn);
     const bucket = new s3.Bucket(this, `NexusBucket${stage}`, {
       bucketName: `nexus-static-asset-bucket-${stage}`,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
-    let stripe_secret_key = process.env.STRIPE_SECRET_KEY!;
+    // const stripe_secret_key = process.env.STRIPE_SECRET_KEY!;
+    // const kms_key = new kms.Key(this, `NexusKMSKeyCSRF`, {
+    //   description: `KMS key for CSRF protection`,
+    //   enableKeyRotation: true,
+    // });
     const fat_lambda = new lambda.Function(this, `NexusSSRFunction${stage}`, {
       runtime: lambda.Runtime.PROVIDED_AL2023,
       handler: 'index.main',
       code: lambda.Code.fromAsset("../nexus/target/lambda/server/bootstrap.zip"),
       architecture: lambda.Architecture.ARM_64,
-      memorySize: 128,
-      environment: {
-        "STRIPE_SECRET_KEY": stripe_secret_key
-      },
+      memorySize: 256,
+      // environment: {
+      //   "STRIPE_SECRET_KEY": stripe_secret_key,
+      //   "KMS_KEY_ARN": kms_key.keyArn,
+      // },
       timeout: cdk.Duration.millis(3000),
       logGroup: new aws_logs.LogGroup(this, `NexusLambdaLogGroup${stage}`, {
         retention: aws_logs.RetentionDays.FIVE_DAYS,
       })
     });
-    // TODO: Add SecretsManager permission to lambda
     const lambda_integration = new integrations.HttpLambdaIntegration(`LambdaIntegration${stage}`, fat_lambda);
-    const http_api = new apigateway.HttpApi(this, `HttpApi${stage}`, {
+    const iam_auth = new apigateway_authorizers.HttpIamAuthorizer()
+    const http_api = new apigateway.HttpApi(this, `NexusHttpApi${stage}`, {
       defaultIntegration: lambda_integration,
+      disableExecuteApiEndpoint: false,
+      defaultAuthorizer: iam_auth,
+      apiName: `NexusHttpApi${stage}`,
     });
-    http_api.addRoutes({
+    const routes = http_api.addRoutes({
       path: '/',
-      methods: [apigateway.HttpMethod.GET],
-      integration: lambda_integration
+      methods: [apigateway.HttpMethod.ANY],
+      integration: lambda_integration,
     });
     const cf_distribution = new cloudfront.Distribution(this, `NexusDistribution${stage}`, {
       defaultBehavior: {
@@ -70,7 +84,16 @@ export class CdkStack extends cdk.Stack {
       },
       priceClass: cloudfront.PriceClass.PRICE_CLASS_ALL,
       comment: `${stage}`,
-      webAclId: props?.webAclArn
+      webAclId: props.webAclArn,
+      domainNames: [domain_name],
+      certificate: acm_certificate,
+    });
+
+    const distributionArn = `arn:aws:cloudfront::${this.account}:distribution/${cf_distribution.distributionId}`;
+    const iam_principle = new iam.ArnPrincipal(distributionArn);
+
+    routes.forEach(route => {
+      route.grantInvoke(iam_principle)
     });
 
     const table_suffix = is_prod ? '' : `${stage}`;
@@ -128,8 +151,13 @@ export class CdkStack extends cdk.Stack {
         ses.EmailSendingEvent.RENDERING_FAILURE,
       ]
     });
+    const email_subscription = new sns_subscriptions.EmailSubscription(`andrew@projectGlint.com`);
+    const email_subscription_2 = new sns_subscriptions.EmailSubscription(`apeterson2775@gmail.com`);
     sns_topic.addSubscription(
-      new sns_subscriptions.EmailSubscription(`andrew@projectGlint.com`)
+      email_subscription
+    );
+    sns_topic.addSubscription(
+      email_subscription_2
     );
     const sns_action = new cloudwatch_actions.SnsAction(sns_topic);
     // TODO: Add SNS and lambda to shut off cloudfront distribution if budget exceeds maximum

@@ -1,20 +1,6 @@
 import * as cdk from 'aws-cdk-lib';
-import * as lambda from 'aws-cdk-lib/aws-lambda';
-import * as s3 from 'aws-cdk-lib/aws-s3';
-import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
-import * as cf_origins from 'aws-cdk-lib/aws-cloudfront-origins';
-import * as apigateway from 'aws-cdk-lib/aws-apigatewayv2';
-import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
-import * as iam from 'aws-cdk-lib/aws-iam';
-import * as integrations from 'aws-cdk-lib/aws-apigatewayv2-integrations';
-import * as budgets from 'aws-cdk-lib/aws-budgets';
-import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
-import * as aws_logs from 'aws-cdk-lib/aws-logs';
 import * as wafv2 from 'aws-cdk-lib/aws-wafv2';
-import * as ses from 'aws-cdk-lib/aws-ses';
-import * as sns from 'aws-cdk-lib/aws-sns';
-import * as sns_subscriptions from 'aws-cdk-lib/aws-sns-subscriptions';
-import * as cloudwatch_actions from 'aws-cdk-lib/aws-cloudwatch-actions';
+import * as acm from 'aws-cdk-lib/aws-certificatemanager';
 
 import { Construct } from 'constructs';
 
@@ -25,6 +11,7 @@ interface WafStackProps extends cdk.StackProps {
 export class WafStack extends cdk.Stack {
 
   public readonly webAclArn: string;
+  public readonly certificateArn: string;
 
   constructor(scope: Construct, id: string, props?: WafStackProps) {
     super(scope, id, props);
@@ -58,11 +45,13 @@ export class WafStack extends cdk.Stack {
       ],
     });
 
-    this.webAclArn = webAcl.attrArn;
+    const domain_name = is_prod ? `projectglint.com` : `${stage}.projectglint.com`;
 
-    // new cdk.CfnOutput(this, `WebAclArn${stage}`, {
-    //   value: this.webAclArn,
-    //   exportName: `WebAclArn${stage}`
-    // });
+    const certificate = new acm.Certificate(this, `NexusCertificate${stage}`, {
+      domainName: domain_name,
+      validation: acm.CertificateValidation.fromDns()
+    });
+    this.certificateArn = certificate.certificateArn;
+    this.webAclArn = webAcl.attrArn;
   }
 }

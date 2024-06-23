@@ -21,6 +21,7 @@ new CdkStack(app, `NexusCdkStack-${stage}`, {
   stage: stage,
   description: `Stack created by CDK code (Rust Leptos Project) ${stage}`,
   webAclArn: waf_stack.webAclArn,
+  certificateArn: waf_stack.certificateArn,
   env: {
     region: 'us-west-2'
   },
