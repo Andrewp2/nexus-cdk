@@ -37,21 +37,12 @@ export class CdkStack extends cdk.Stack {
       bucketName: `nexus-static-asset-bucket-${stage}`,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
-    // const stripe_secret_key = process.env.STRIPE_SECRET_KEY!;
-    // const kms_key = new kms.Key(this, `NexusKMSKeyCSRF`, {
-    //   description: `KMS key for CSRF protection`,
-    //   enableKeyRotation: true,
-    // });
     const fat_lambda = new lambda.Function(this, `NexusSSRFunction${stage}`, {
       runtime: lambda.Runtime.PROVIDED_AL2023,
       handler: 'index.main',
       code: lambda.Code.fromAsset("../nexus/target/lambda/server/bootstrap.zip"),
       architecture: lambda.Architecture.ARM_64,
       memorySize: 256,
-      // environment: {
-      //   "STRIPE_SECRET_KEY": stripe_secret_key,
-      //   "KMS_KEY_ARN": kms_key.keyArn,
-      // },
       timeout: cdk.Duration.millis(3000),
       logGroup: new aws_logs.LogGroup(this, `NexusLambdaLogGroup${stage}`, {
         retention: aws_logs.RetentionDays.FIVE_DAYS,
@@ -480,7 +471,7 @@ export class CdkStack extends cdk.Stack {
           })
         ],
         [
-          new cloudwatch.AlarmStatusWidget({ alarms: alarms, width: 24, title: `Alarms` })
+          new cloudwatch.AlarmStatusWidget({ alarms: alarms, width: 24, title: `Alarms`, height: 6 })
         ]
       ]
     });
