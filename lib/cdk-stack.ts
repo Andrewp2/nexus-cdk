@@ -49,11 +49,14 @@ export class CdkStack extends cdk.Stack {
       })
     });
     const lambda_integration = new integrations.HttpLambdaIntegration(`LambdaIntegration${stage}`, fat_lambda);
-    const iam_auth = new apigateway_authorizers.HttpIamAuthorizer()
+    // const iam_auth = new apigateway_authorizers.HttpIamAuthorizer()
+    // TODO: In order to use authorizers to prevent DDOS I need to have an additional lambda@edge sign the request with Sigv4
+    // https://aws.amazon.com/blogs/security/protect-apis-with-amazon-api-gateway-and-perimeter-protection-services/
+    // I don't think this is worth the time right now considering I have 0 newcomers to the site in the first place
     const http_api = new apigateway.HttpApi(this, `NexusHttpApi${stage}`, {
       defaultIntegration: lambda_integration,
       disableExecuteApiEndpoint: false,
-      defaultAuthorizer: iam_auth,
+      // defaultAuthorizer: iam_auth,
       apiName: `NexusHttpApi${stage}`,
     });
     const routes = http_api.addRoutes({
@@ -90,7 +93,6 @@ export class CdkStack extends cdk.Stack {
     const kms_key = new kms.Key(this, `NexusCSRFSecretKey${stage}`, {
       description: `Key for CSRF Protection for stage: ${stage}`,
       enabled: true,
-      enableKeyRotation: true,
       // cannot enable HMAC Key rotation, must do manually
       alias: `CSRFSecretKey${stage}`,
       keyUsage: kms.KeyUsage.GENERATE_VERIFY_MAC,
