@@ -87,6 +87,18 @@ export class CdkStack extends cdk.Stack {
       route.grantInvoke(iam_principle)
     });
 
+    const kms_key = new kms.Key(this, `NexusCSRFSecretKey${stage}`, {
+      description: `Key for CSRF Protection for stage: ${stage}`,
+      enabled: true,
+      enableKeyRotation: true,
+      // cannot enable HMAC Key rotation, must do manually
+      alias: `CSRFSecretKey${stage}`,
+      keyUsage: kms.KeyUsage.GENERATE_VERIFY_MAC,
+      keySpec: kms.KeySpec.HMAC_256
+    });
+
+    kms_key.grantDecrypt(fat_lambda);
+
     const table_suffix = is_prod ? '' : `${stage}`;
     const table = new dynamodb.TableV2(this, `NexusDynamoTable${stage}`, {
       tableName: `Users-${table_suffix}`,
